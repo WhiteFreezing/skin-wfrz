@@ -27,11 +27,20 @@ export default function HomePage() {
       if (r.status === 404) throw new Error("Username not found");
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
-      // Ashcon: { uuid: 'xxxx-xxxx-...', username: 'Name', textures: { skin: { url } } }
+      // Ashcon shape:
+      //   uuid: '069a79f4-44e9-4726-a5be-fca90e38aaf5'
+      //   username: 'Notch'
+      //   textures.skin.url: 'http://textures.minecraft.net/texture/<hash>'
+      //   textures.cape.url: same shape, or undefined if no cape currently equipped
       const id = (j.uuid as string).replace(/-/g, "");
       setProfile({ id, name: j.username });
-      setSkinUrl(`https://mc-heads.net/skin/${id}`);
-      setCapeUrl(`https://mc-heads.net/cape/${id}`);
+      // textures.minecraft.net serves on http (Mojang preserves the http:// in
+      // their texture properties). Upgrade to https so mixed-content blocking
+      // doesn't kill it on our https origin.
+      const skinUrl = (j.textures?.skin?.url || `https://mc-heads.net/skin/${id}`).replace(/^http:\/\//, "https://");
+      setSkinUrl(skinUrl);
+      const capeRaw = j.textures?.cape?.url;
+      setCapeUrl(capeRaw ? capeRaw.replace(/^http:\/\//, "https://") : null);
     } catch (e: any) {
       setErr(e.message);
     }
@@ -55,11 +64,9 @@ export default function HomePage() {
         skin: skinUrl,
         model: model,
       });
-      try {
-        // capes 404 silently if user has none — wrap
-        const r = await fetch(capeUrl!, { method: "HEAD" });
-        if (r.ok) await viewer.loadCape(capeUrl!);
-      } catch {}
+      if (capeUrl) {
+        try { await viewer.loadCape(capeUrl); } catch {}
+      }
       viewer.controls.enableRotate = true;
       viewer.controls.enableZoom = true;
       viewer.controls.enablePan = false;
@@ -89,12 +96,20 @@ export default function HomePage() {
 
       <section className="max-w-5xl mx-auto px-5 pt-6 pb-24 grid lg:grid-cols-[1fr_320px] gap-5">
         <div className="space-y-4">
-          <div className="card p-4 flex gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && lookup()}
-              className="input input-mono text-lg !py-3 flex-1"
-              placeholder="MC username" spellCheck={false} autoFocus />
-            <button onClick={lookup} className="btn-brand">Lookup</button>
+          <div className="card p-4 space-y-3">
+            <div className="flex gap-2">
+              <input value={name} onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && lookup()}
+                className="input input-mono text-lg !py-3 flex-1"
+                placeholder="MC username" spellCheck={false} autoFocus />
+              <button onClick={lookup} className="btn-brand">Lookup</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              <span className="text-dim self-center mr-1">Cape examples:</span>
+              {["Dinnerbone", "jeb_", "Marc", "Notch"].map((u) => (
+                <button key={u} onClick={() => { setName(u); setTimeout(lookup, 0); }} className="chip">{u}</button>
+              ))}
+            </div>
           </div>
 
           {err && <div className="card p-4 border-red-500/50 bg-red-500/5 text-sm text-red-200">{err}</div>}
@@ -138,7 +153,11 @@ export default function HomePage() {
             <div className="card p-4 space-y-2">
               <div className="text-xs uppercase tracking-wider text-dim">Download</div>
               <a className="block chip" download={`${profile?.name}-skin.png`} href={skinUrl}>Skin PNG (64×64)</a>
-              <a className="block chip" download={`${profile?.name}-cape.png`} href={capeUrl!}>Cape PNG (if any)</a>
+              {capeUrl ? (
+                <a className="block chip" download={`${profile?.name}-cape.png`} href={capeUrl}>Cape PNG (64×32)</a>
+              ) : (
+                <div className="text-xs text-dim italic">No cape equipped on this profile.</div>
+              )}
               <code className="text-xs text-dim block break-all mt-2">{skinUrl}</code>
             </div>
           )}
@@ -147,7 +166,7 @@ export default function HomePage() {
 
       <footer className="border-t border-border/70 py-8 text-sm text-dim">
         <div className="max-w-5xl mx-auto px-5 flex items-center justify-between flex-wrap gap-4">
-          <div>Skin renders by <a className="hover:text-text" href="https://github.com/bs-community/skinview3d" target="_blank" rel="noopener">skinview3d</a>. Profile data from Mojang. Skin / cape PNG via mc-heads.net.</div>
+          <div>Renders by <a className="hover:text-text" href="https://github.com/bs-community/skinview3d" target="_blank" rel="noopener">skinview3d</a>. Profile via <a className="hover:text-text" href="https://github.com/Electroid/mojang-api" target="_blank" rel="noopener">Ashcon</a> (Mojang mirror). Skin / cape PNGs from <code>textures.minecraft.net</code> (Mojang CDN).</div>
           <a href="https://github.com/WhiteFreezing/skin-wfrz" target="_blank" rel="noopener" className="hover:text-text">GitHub →</a>
         </div>
       </footer>
