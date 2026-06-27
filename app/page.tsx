@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const MOJANG_PROFILE = "https://api.mojang.com/users/profiles/minecraft";
-const SESSION_PROFILE = "https://sessionserver.mojang.com/session/minecraft/profile";
+// Mojang's own api.mojang.com lacks CORS headers — browser fetch is blocked.
+// Ashcon is a CORS-enabled mirror of the same data, free, no auth.
+const ASHCON = "https://api.ashcon.app/mojang/v2/user";
 
 type Profile = { id: string; name: string };
 
@@ -22,14 +23,15 @@ export default function HomePage() {
   async function lookup() {
     setErr(""); setProfile(null); setSkinUrl(null); setCapeUrl(null);
     try {
-      const r = await fetch(`${MOJANG_PROFILE}/${encodeURIComponent(name.trim())}`);
-      if (r.status === 204 || r.status === 404) throw new Error("Username not found");
+      const r = await fetch(`${ASHCON}/${encodeURIComponent(name.trim())}`);
+      if (r.status === 404) throw new Error("Username not found");
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j: Profile = await r.json();
-      setProfile(j);
-      // Crafatar serves the canonical skin/cape PNG via the UUID — CORS-friendly.
-      setSkinUrl(`https://mc-heads.net/skin/${j.id}`);
-      setCapeUrl(`https://mc-heads.net/cape/${j.id}`);
+      const j = await r.json();
+      // Ashcon: { uuid: 'xxxx-xxxx-...', username: 'Name', textures: { skin: { url } } }
+      const id = (j.uuid as string).replace(/-/g, "");
+      setProfile({ id, name: j.username });
+      setSkinUrl(`https://mc-heads.net/skin/${id}`);
+      setCapeUrl(`https://mc-heads.net/cape/${id}`);
     } catch (e: any) {
       setErr(e.message);
     }
