@@ -28,8 +28,8 @@ export default function HomePage() {
       const j: Profile = await r.json();
       setProfile(j);
       // Crafatar serves the canonical skin/cape PNG via the UUID — CORS-friendly.
-      setSkinUrl(`https://crafatar.com/skins/${j.id}`);
-      setCapeUrl(`https://crafatar.com/capes/${j.id}`);
+      setSkinUrl(`https://mc-heads.net/skin/${j.id}`);
+      setCapeUrl(`https://mc-heads.net/cape/${j.id}`);
     } catch (e: any) {
       setErr(e.message);
     }
@@ -145,7 +145,7 @@ export default function HomePage() {
 
       <footer className="border-t border-border/70 py-8 text-sm text-dim">
         <div className="max-w-5xl mx-auto px-5 flex items-center justify-between flex-wrap gap-4">
-          <div>Skin renders by <a className="hover:text-text" href="https://github.com/bs-community/skinview3d" target="_blank" rel="noopener">skinview3d</a>. Profile data from Mojang. Skin PNG via Crafatar.</div>
+          <div>Skin renders by <a className="hover:text-text" href="https://github.com/bs-community/skinview3d" target="_blank" rel="noopener">skinview3d</a>. Profile data from Mojang. Skin / cape PNG via mc-heads.net.</div>
           <a href="https://github.com/WhiteFreezing/skin-wfrz" target="_blank" rel="noopener" className="hover:text-text">GitHub →</a>
         </div>
       </footer>
